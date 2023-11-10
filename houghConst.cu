@@ -100,10 +100,12 @@ __global__ void GPU_HoughTran(unsigned char *pic, int w, int h, int *acc, float 
 //*****************************************************************
 int main(int argc, char **argv)
 {
+  // tiempo
   cudaEvent_t start, stop;
   cudaEventCreate(&start);
   cudaEventCreate(&stop);
 
+  // create a PGMImage object
   PGMImage inImg(argv[1]);
 
   int *cpuht;
