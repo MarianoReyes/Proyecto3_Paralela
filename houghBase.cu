@@ -173,9 +173,7 @@ int main(int argc, char **argv)
   cudaEventRecord(stop, 0);
   cudaEventSynchronize(stop);
 
-  float elapsedTime;
-  cudaEventElapsedTime(&elapsedTime, start, stop);
-  printf("Tiempo de ejecución del kernel: %f ms\n", elapsedTime);
+
 
   // Get results from device
   cudaMemcpy(h_hough, d_hough, sizeof(int) * degreeBins * rBins, cudaMemcpyDeviceToHost);
@@ -198,6 +196,10 @@ int main(int argc, char **argv)
   }
   inImg->saveAsJPEG("Base.jpeg", lines, radInc, rBins);
   printf("Done!\n");
+
+  float elapsedTime;
+  cudaEventElapsedTime(&elapsedTime, start, stop);
+  printf("Tiempo de ejecución del kernel: %f ms\n", elapsedTime);
 
   // Liberar memoria
   cudaFree(d_in);
