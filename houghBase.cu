@@ -6,6 +6,7 @@
  License       : Released under the GNU GPL 3.0
  Description   : redo de hough base
  To build use  : make
+ To run use    : make run_base
  ============================================================================
  */
 #include <stdio.h>
