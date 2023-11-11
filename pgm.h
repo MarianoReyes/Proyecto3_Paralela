@@ -20,7 +20,6 @@ public:
   void setColor(int r, int g, int b);
   int getXDim(void);
   int getYDim(void);
-  int getNumColors(void);
   unsigned char *getPixels(void);
   void saveImg(const char *destFile, std::vector<std::pair<int, int>> highlightLines, float angleStep, int radiusDivisions);
 };
