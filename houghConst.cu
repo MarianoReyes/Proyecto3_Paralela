@@ -13,7 +13,7 @@
 #include <math.h>
 #include <cuda.h>
 #include <string.h>
-#include "common/pgm.h"
+#include "pgm.h"
 // tiempo de cuda
 #include <cuda_runtime.h>
 
@@ -100,6 +100,9 @@ __global__ void GPU_HoughTran(unsigned char *pic, int w, int h, int *acc, float 
 //*****************************************************************
 int main(int argc, char **argv)
 {
+  int i;
+  int threshhold = argv[2] ? atoi(argv[2]) : 4000;
+
   // tiempo
   cudaEvent_t start, stop;
   cudaEventCreate(&start);
@@ -155,14 +158,14 @@ int main(int argc, char **argv)
 
   // Execution configuration uses a 1-D grid of 1-D blocks, each made of 256 threads
   // 1 thread por pixel
-  int blockNum = ceil(w * h / 256.0);
+  int blockNum = ceil(w * h / 256);
   dim3 gridDim(blockNum, 1);
   dim3 blockDim(16, 16); // Puedes ajustar estos valores según tus necesidades
 
   // Lanzar el kernel y medir el tiempo de ejecución
   cudaEventRecord(start, 0);
 
-  GPU_HoughTran<<<gridDim, blockDim>>>(d_in, w, h, d_hough, rMax, rScale, d_Cos, d_Sin);
+  GPU_HoughTran <<< blockNum, 256 >>> (d_in, w, h, d_hough, rMax, rScale, d_Cos, d_Sin);
 
   cudaEventRecord(stop, 0);
   cudaEventSynchronize(stop);
@@ -182,6 +185,19 @@ int main(int argc, char **argv)
   }
 
   printf("Done!\n");
+    // ----> GENERAR IMAGEN DE SALIDA
+  std::vector<std::pair<int, int>> lines;                                         // Vector de pares de enteros (r, th)
+  for (i = 0; i < degreeBins * rBins; i++){                                       // Itera sobre los bins de angulo y radio
+    if (h_hough[i] > threshold) {                                                 // Si el acumulador de la transformada de Hough es mayor que el umbral
+      // pair order: r, th
+      int my_r = i / degreeBins;                                                  // Calcula el radio
+      int my_th = i % degreeBins;                                                 // Calcula el angulo
+      std::pair<int, int> line = {my_r, my_th};                                   // Crea el par de enteros (r, th)
+      lines.push_back(line);                                                      // Agrega el par de enteros al vector
+    }
+  }
+  inImg->write("BaseOutput.jpeg", lines, radInc, rBins);                          // Guarda la imagen de salida en .jpeg
+
 
   // Liberar memoria
   cudaFree(d_in);
