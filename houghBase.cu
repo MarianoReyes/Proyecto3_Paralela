@@ -14,15 +14,16 @@
 #include <math.h>
 #include <cuda.h>
 #include <string.h>
+#include <vector>
 #include "pgm.h"
 // tiempo de cuda
 #include <cuda_runtime.h>
-#include <vector>
 
 const int degreeInc = 2;
 const int degreeBins = 180 / degreeInc;
 const int rBins = 100;
 const float radInc = degreeInc * M_PI / 180;
+
 //*****************************************************************
 // The CPU function returns a pointer to the accummulator
 void CPU_HoughTran (unsigned char *pic, int w, int h, int **acc)
@@ -35,10 +36,10 @@ void CPU_HoughTran (unsigned char *pic, int w, int h, int **acc)
   float rScale = 2 * rMax / rBins;
 
   for (int i = 0; i < w; i++) //por cada pixel
-    for (int j = 0; j < h; j++) //...
+    for (int j = 0; j < h; j++) 
       {
         int idx = j * w + i;
-        if (pic[idx] > 0) //si pasa thresh, entonces lo marca
+        if (pic[idx] > 0) //si pasa threshold, entonces lo marca
           {
             int xCoord = i - xCent;
             int yCoord = yCent - j;  // y-coord has to be reversed
@@ -53,24 +54,6 @@ void CPU_HoughTran (unsigned char *pic, int w, int h, int **acc)
           }
       }
 }
-
-//*****************************************************************
-// TODO usar memoria constante para la tabla de senos y cosenos
-// inicializarlo en main y pasarlo al device
-//__constant__ float d_Cos[degreeBins];
-//__constant__ float d_Sin[degreeBins];
-
-//*****************************************************************
-//TODO Kernel memoria compartida
-// __global__ void GPU_HoughTranShared(...)
-// {
-//   //TODO
-// }
-//TODO Kernel memoria Constante
-// __global__ void GPU_HoughTranConst(...)
-// {
-//   //TODO
-// }
 
 // GPU kernel. One thread per image pixel is spawned.
 __global__ void GPU_HoughTran(unsigned char *pic, int w, int h, int *acc, float rMax, float rScale, float *d_Cos, float *d_Sin)
@@ -87,6 +70,7 @@ __global__ void GPU_HoughTran(unsigned char *pic, int w, int h, int *acc, float 
   int xCoord = gloID % w - xCent;
   int yCoord = yCent - gloID / w;
 
+  // verifica si la intensidad del píxel en la posición actual del hilo (gloID) en la imagen de entrada (pic) es mayor que 0.
   if (pic[gloID] > 0)
   {
     for (int tIdx = 0; tIdx < degreeBins; tIdx++)
@@ -99,11 +83,13 @@ __global__ void GPU_HoughTran(unsigned char *pic, int w, int h, int *acc, float 
 }
 
 
-//*****************************************************************
+// main que ejecuta todo el programa
 int main(int argc, char **argv)
 {
+  // variable de threshold, de no otorgarse como parametro es 3115
   int i;
   int threshhold = argv[2] ? atoi(argv[2]) : 3115;
+  
   // tiempo
   cudaEvent_t start, stop;
   cudaEventCreate(&start);
@@ -112,17 +98,20 @@ int main(int argc, char **argv)
   // create a PGMImage object
   PGMImage* inImg = new PGMImage(argv[1]); 
 
+  // color con el que vamos a colorear la imagen base
   inImg->setColor(0,255,0);
 
+  // dimensiones de la imagen
   int *cpuht;
   int w = inImg->getXDim();
   int h = inImg->getYDim();  
 
+  // asignacion de memoria al seno y cosen
   float *d_Cos;
   float *d_Sin;
 
-   cudaMalloc((void **)&d_Cos, sizeof(float) * degreeBins);
-   cudaMalloc((void **)&d_Sin, sizeof(float) * degreeBins);
+  cudaMalloc((void **)&d_Cos, sizeof(float) * degreeBins);
+  cudaMalloc((void **)&d_Sin, sizeof(float) * degreeBins);
  
   // CPU calculation
   CPU_HoughTran(inImg->getPixels(), w, h, &cpuht);
@@ -132,6 +121,7 @@ int main(int argc, char **argv)
   float *pcSin = (float *)malloc(sizeof(float) * degreeBins);
   float rad = 0;
 
+  // calculo de valores de sen y cosen para varios angulos
   for (int i = 0; i < degreeBins; i++)
   {
     pcCos[i] = cos(rad);
@@ -139,6 +129,7 @@ int main(int argc, char **argv)
     rad += radInc;
   }
 
+  // calculo de valres con la transformada de hough
   float rMax = sqrt(1.0 * w * w + 1.0 * h * h) / 2;
   float rScale = 2 * rMax / rBins;
 
@@ -165,15 +156,15 @@ int main(int argc, char **argv)
   dim3 gridDim(blockNum, 1);
   dim3 blockDim(16, 16); // Puedes ajustar estos valores según tus necesidades
 
-  // Lanzar el kernel y medir el tiempo de ejecución
+  // lanzar el kernel y medir el tiempo de ejecución
   cudaEventRecord(start, 0);
 
+  // llamada al kernel
   GPU_HoughTran<<<gridDim, blockDim>>>(d_in, w, h, d_hough, rMax, rScale, d_Cos, d_Sin);
 
+  // terminar el timepo de ejecucion
   cudaEventRecord(stop, 0);
   cudaEventSynchronize(stop);
-
-
 
   // Get results from device
   cudaMemcpy(h_hough, d_hough, sizeof(int) * degreeBins * rBins, cudaMemcpyDeviceToHost);
@@ -184,19 +175,25 @@ int main(int argc, char **argv)
     if (cpuht[i] != h_hough[i])
       printf("Calculation mismatch at : %i %i %i\n", i, cpuht[i], h_hough[i]);
   }
-  std::vector<std::pair<int, int>> lines;                                         // Vector de pares de enteros (r, th)
-  for (i = 0; i < degreeBins * rBins; i++){                                       // Itera sobre los bins de angulo y radio
-    if (h_hough[i] > threshhold) {                                                 // Si el acumulador de la transformada de Hough es mayor que el umbral
-      // pair order: r, th
-      int my_r = i / degreeBins;                                                  // Calcula el radio
-      int my_th = i % degreeBins;                                                 // Calcula el angulo
-      std::pair<int, int> line = {my_r, my_th};                                   // Crea el par de enteros (r, th)
-      lines.push_back(line);                                                      // Agrega el par de enteros al vector
+
+  // codigo  que contiene las coordenadas polares de las líneas detectadas en la imagen, basándose en los resultados de la transformada de Hough
+  std::vector<std::pair<int, int>> lines;                                         
+  for (i = 0; i < degreeBins * rBins; i++){                                       
+    if (h_hough[i] > threshhold) {                                                
+      int my_r = i / degreeBins;                                                  
+      int my_th = i % degreeBins;                                                 
+      std::pair<int, int> line = {my_r, my_th};                                   
+      lines.push_back(line);                                                      
     }
   }
-  inImg->saveAsJPEG("Base.jpeg", lines, radInc, rBins);
+
+  // guardar imagen
+  inImg->saveImg("Base.jpeg", lines, radInc, rBins);
+
+  // programa terminado
   printf("Done!\n");
 
+  // tiempo de ejecucion
   float elapsedTime;
   cudaEventElapsedTime(&elapsedTime, start, stop);
   printf("Tiempo de ejecución del kernel: %f ms\n", elapsedTime);

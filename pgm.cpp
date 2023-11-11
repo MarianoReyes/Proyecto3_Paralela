@@ -91,7 +91,7 @@ void setRGBPixel(unsigned char *data, int index, unsigned char r, unsigned char 
    data[index * 3 + 2] = b;
 }
 
-void PGMImage::saveAsJPEG(const char *destFile, std::vector<std::pair<int, int>> highlightLines, float angleStep, int radiusDivisions)
+void PGMImage::saveImg(const char *destFile, std::vector<std::pair<int, int>> highlightLines, float angleStep, int radiusDivisions)
 {
    // Preparación de variables para el cálculo
    float diagonal = sqrt(pow(this->x_dim, 2) + pow(this->y_dim, 2)) / 2;

@@ -22,7 +22,7 @@ public:
   int getYDim(void);
   int getNumColors(void);
   unsigned char *getPixels(void);
-  void saveAsJPEG(const char *destFile, std::vector<std::pair<int, int>> highlightLines, float angleStep, int radiusDivisions);
+  void saveImg(const char *destFile, std::vector<std::pair<int, int>> highlightLines, float angleStep, int radiusDivisions);
 };
 
 #endif
