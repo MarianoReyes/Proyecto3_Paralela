@@ -1,10 +1,10 @@
 /*/============================================================================
- Author        : G. Barlas
+ Author        : Juan Angel Carrera, Juan Carlos Bajan, Jose Mariano Reyes
  Version       : 1.0
  Last modified : December 2014
  License       : Released under the GNU GPL 3.0
  Description   : Used in different projects to handle PGM I/O
- To build use  :
+ To build use  : make
  ============================================================================
  */
 #include <stdio.h>
@@ -17,7 +17,7 @@
 
 using namespace std;
 
-//-------------------------------------------------------------------
+// representar imágenes en formato PGM
 PGMImage::PGMImage(char *fname)
 {
    this->color = {0, 0, 0}; // color inicializado a negro
@@ -42,11 +42,14 @@ PGMImage::PGMImage(char *fname)
 
    fclose(ifile);
 }
+
+// darle color a las lineas por dibujar
 void PGMImage::setColor(int r, int g, int b)
 {
    this->color = {r, g, b};
 }
-//-------------------------------------------------------------------
+
+// constructor para imagen nueva
 PGMImage::PGMImage(int x = 100, int y = 100, int col = 16)
 {
    this->num_colors = (col > 1) ? col : 16;
@@ -56,7 +59,8 @@ PGMImage::PGMImage(int x = 100, int y = 100, int col = 16)
    memset(this->pixels, 0, this->x_dim * this->y_dim);
    assert(this->pixels);
 }
-//-------------------------------------------------------------------
+
+// cuando se elimina la imagen
 PGMImage::~PGMImage()
 {
    if (this->pixels != NULL)
@@ -64,25 +68,24 @@ PGMImage::~PGMImage()
    this->pixels = NULL;
 }
 
+// consigue el tamano x de la imagen
 int PGMImage::getXDim(void)
 {
    return this->x_dim;
 }
 
+// consigue el tamano y de la imagen
 int PGMImage::getYDim(void)
 {
    return this->y_dim;
 }
 
-int PGMImage::getNumColors(void)
-{
-   return this->num_colors;
-}
-
+// retorna los pixeles de la imagen
 unsigned char *PGMImage::getPixels(void)
 {
    return this->pixels;
 }
+
 // Función auxiliar para colorear un pixel en la imagen RGB
 void setRGBPixel(unsigned char *data, int index, unsigned char r, unsigned char g, unsigned char b)
 {
@@ -91,6 +94,7 @@ void setRGBPixel(unsigned char *data, int index, unsigned char r, unsigned char 
    data[index * 3 + 2] = b;
 }
 
+// guarda la imagen en el nuevo formato
 void PGMImage::saveImg(const char *destFile, std::vector<std::pair<int, int>> highlightLines, float angleStep, int radiusDivisions)
 {
    // Preparación de variables para el cálculo
