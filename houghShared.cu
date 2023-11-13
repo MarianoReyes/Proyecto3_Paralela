@@ -59,40 +59,43 @@ void CPU_HoughTran (unsigned char *pic, int w, int h, int **acc)
 // GPU kernel. One thread per image pixel is spawned.
 __global__ void GPU_HoughTranShared(unsigned char *pic, int w, int h, int *acc, float rMax, float rScale, float *d_Cos, float *d_Sin)
 {
-  // Calcular gloID teniendo en cuenta la geometría del grid
-  int blockID = blockIdx.x + blockIdx.y * gridDim.x;
-  int gloID = blockID * blockDim.x * blockDim.y + threadIdx.y * blockDim.x + threadIdx.x;
+    int blockID = blockIdx.x + blockIdx.y * gridDim.x;
+    int gloID = blockID * blockDim.x * blockDim.y + threadIdx.y * blockDim.x + threadIdx.x;
 
-  if (gloID >= w * h) return; // En caso de hilos extras en el bloque
+    if (gloID >= w * h) return;
 
-  int xCent = w / 2;
-  int yCent = h / 2;
+    int xCent = w / 2;
+    int yCent = h / 2;
 
-  int xCoord = gloID % w - xCent;
-  int yCoord = yCent - gloID / w;
+    int xCoord = gloID % w - xCent;
+    int yCoord = yCent - gloID / w;
 
-  // memoria compartida
-  __shared__ int localAcc[degreeBins * rBins];                        
-  for (int i = blockID; i < degreeBins * rBins; i += blockDim.x)         
-  localAcc[i] = 0;  
+    __shared__ int localAcc[degreeBins * rBins];
+    int localIndex = threadIdx.x + threadIdx.y * blockDim.x;
 
-  __syncthreads();  
+    // Inicializar la memoria compartida
+    for (int i = localIndex; i < degreeBins * rBins; i += blockDim.x * blockDim.y)
+        localAcc[i] = 0;
 
-  if (pic[gloID] > 0)
-  {
-    for (int tIdx = 0; tIdx < degreeBins; tIdx++)
+    __syncthreads();
+
+    if (pic[gloID] > 0)
     {
-      // calculo con memoria compartida para calcular el radio
-      float r = xCoord * d_Cos[tIdx] + yCoord * d_Sin[tIdx];
-      int rIdx = (r + rMax) / rScale;
-      atomicAdd(acc + (rIdx * degreeBins + tIdx), 1);
+        for (int tIdx = 0; tIdx < degreeBins; tIdx++)
+        {
+            float r = xCoord * d_Cos[tIdx] + yCoord * d_Sin[tIdx];
+            int rIdx = (r + rMax) / rScale;
+            atomicAdd(&localAcc[rIdx * degreeBins + tIdx], 1);
+        }
     }
-  }
 
-  __syncthreads(); 
-  for (int i = blockID; i < degreeBins * rBins; i += blockDim.x)  
-  atomicAdd (&acc[i], localAcc[i]);         
+    __syncthreads();
+
+    // Sumar resultados de la memoria compartida a la memoria global
+    for (int i = localIndex; i < degreeBins * rBins; i += blockDim.x * blockDim.y)
+        atomicAdd(&acc[i], localAcc[i]);
 }
+
 
 __constant__ float d_Cos[degreeBins]; 
 __constant__ float d_Sin[degreeBins];     

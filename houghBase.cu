@@ -19,7 +19,7 @@
 // tiempo de cuda
 #include <cuda_runtime.h>
 
-const int degreeInc = 2;
+const int degreeInc = 1;
 const int degreeBins = 180 / degreeInc;
 const int rBins = 100;
 const float radInc = degreeInc * M_PI / 180;
